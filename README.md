@@ -1,5 +1,7 @@
 # [Sqids Julia](https://sqids.org/julia)
 
+[![Github Actions](https://img.shields.io/github/actions/workflow/status/sqids/sqids-julia/CI.yml)](https://github.com/sqids/sqids-julia/actions)
+
 Sqids (pronounced "squids") is a small library that lets you generate YouTube-looking IDs from numbers. It's good for link shortening, fast & URL-safe ID generation and decoding back into numbers for quicker database lookups.
 
 ## Getting started
@@ -46,7 +48,9 @@ numbers = Sqids.decode(config, id) # [1, 2, 3]
 
 ## Notes
 
-@todo
+- **Do not encode sensitive data.** These IDs can be easily decoded.
+- **Default blacklist is auto-enabled.** It's configured for the most common profanity words. Create your own custom list by using the `blacklist` parameter, or pass an empty array to allow all words.
+- Read more at <https://sqids.org/julia>
 
 ## License
 
