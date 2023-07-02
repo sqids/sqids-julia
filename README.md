@@ -41,7 +41,7 @@ numbers = Sqids.decode(config, id) # [1, 2, 3]
 Prevent specific words from appearing anywhere in the auto-generated IDs:
 
 ```julia
-config = Sqids.configure(blacklist=["word1","word2"])
+config = Sqids.configure(blocklist=["word1","word2"])
 id = Sqids.encode(config, [1, 2, 3]) # "8QRLaD"
 numbers = Sqids.decode(config, id) # [1, 2, 3]
 ```
@@ -49,7 +49,7 @@ numbers = Sqids.decode(config, id) # [1, 2, 3]
 ## Notes
 
 - **Do not encode sensitive data.** These IDs can be easily decoded.
-- **Default blacklist is auto-enabled.** It's configured for the most common profanity words. Create your own custom list by using the `blacklist` parameter, or pass an empty array to allow all words.
+- **Default blocklist is auto-enabled.** It's configured for the most common profanity words. Create your own custom list by using the `blocklist` parameter, or pass an empty array to allow all words.
 - Read more at <https://sqids.org/julia>
 
 ## License

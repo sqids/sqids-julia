@@ -4,7 +4,7 @@ export encode, decode, minValue, maxValue
 
 using Base.Checked: mul_with_overflow, add_with_overflow
 
-include("Blacklists.jl")
+include("Blocklists.jl")
 
 const DEFAULT_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const MIN_VALUE = 0
@@ -31,29 +31,29 @@ See also: [`configure`](@ref)
 struct Configuration{S}
     alphabet::String
     minLength::Int
-    blacklist::Set{String}
-    function Configuration(alphabet::AbstractString, minLength::Int, blacklist, strict::Bool = true)
-        # @assert blacklist isa Union{AbstractSet{<:AbstractString}, AbstractArray{<:AbstractString}}
+    blocklist::Set{String}
+    function Configuration(alphabet::AbstractString, minLength::Int, blocklist, strict::Bool = true)
+        # @assert blocklist isa Union{AbstractSet{<:AbstractString}, AbstractArray{<:AbstractString}}
         length(alphabet) < 5 && throw(ArgumentError("Alphabet length must be at least 5."))
         length(unique(alphabet)) == length(alphabet) || throw(ArgumentError("Alphabet must contain unique characters."))
         MIN_VALUE ≤ minLength ≤ length(alphabet) || throw(ArgumentError("Minimum length has to be between $(MIN_VALUE) and $(length(alphabet))."))
 
-		# clean up blacklist:
-		# 1. all blacklist words should be lowercase
+		# clean up blocklist:
+		# 1. all blocklist words should be lowercase
 		# 2. no words less than 3 chars
 		# 3. if some words contain chars that are not in the alphabet, remove those
-        filteredBlacklist = Set(filter(blacklist) do word
+        filteredBlocklist = Set(filter(blocklist) do word
             length(word) ≥ 3 && issetequal(word ∩ alphabet, word)
         end .|> lowercase)
-        new{strict}(_shuffle(alphabet), minLength, filteredBlacklist)
+        new{strict}(_shuffle(alphabet), minLength, filteredBlocklist)
     end
 end
-Configuration(; alphabet::AbstractString = DEFAULT_ALPHABET, minLength::Int = 0, blacklist = Blacklists.blacklist, strict::Bool = true) = 
-    Configuration(alphabet, minLength, blacklist, strict)
+Configuration(; alphabet::AbstractString = DEFAULT_ALPHABET, minLength::Int = 0, blocklist = Blocklists.blocklist, strict::Bool = true) = 
+    Configuration(alphabet, minLength, blocklist, strict)
 
 """
     Sqids.configure()  
-    Sqids.configure(alphabet=DEFAULT_ALPHABET, minLength=0, blacklist=Blacklists.blacklist, strict=false)
+    Sqids.configure(alphabet=DEFAULT_ALPHABET, minLength=0, blocklist=Blocklists.blocklist, strict=false)
 
 Configure Sqids with parameters, and return [`Sqids.Configuration`](@ref) instance.  
 `Sqids.configure()` returns default-configuration.
@@ -62,7 +62,7 @@ Configure Sqids with parameters, and return [`Sqids.Configuration`](@ref) instan
 ```julia-repl
 julia> config = Sqids.configure();
 
-julia> config = Sqids.configure(alphabet="abcdefghijklmnopqrstuvwxyz", minLength=16, blacklist=["foo", "bar"]);
+julia> config = Sqids.configure(alphabet="abcdefghijklmnopqrstuvwxyz", minLength=16, blocklist=["foo", "bar"]);
 
 ```
 
@@ -115,7 +115,7 @@ function _encode_numbers(config::Configuration, numbers::AbstractArray{<:Integer
     offset = foldl((a, (i, v)) -> a + Int(config.alphabet[v % length(config.alphabet) + 1]) + i - 1, pairs(numbers), init=length(numbers)) % length(config.alphabet)
 
     # prefix is the first character in the generated ID, used for randomization
-    # partition is the character used instead of the first separator to indicate that the first number in the input array is a throwaway number. this character is used only once to handle blacklist and/or padding. it's omitted completely in all other cases
+    # partition is the character used instead of the first separator to indicate that the first number in the input array is a throwaway number. this character is used only once to handle blocklist and/or padding. it's omitted completely in all other cases
     # alphabet should not contain `prefix` or `partition` reserved characters
     alphabet_chars = collect(config.alphabet)[[offset+1:end; begin:offset]]
     prefix = popfirst!(alphabet_chars)
@@ -159,7 +159,7 @@ function _encode_numbers(config::Configuration, numbers::AbstractArray{<:Integer
         if partitioned
             # c8 ignore next 2
             if isstrict(config) && numbers[1] == maxValue(config)
-                throw(ArgumentError("Ran out of range checking against the blacklist"))
+                throw(ArgumentError("Ran out of range checking against the blocklist"))
             else
                 numbers[1] += 1
             end
@@ -190,7 +190,7 @@ end
 
 function _is_blocked_id(config::Configuration, id::AbstractString)
     id = lowercase(id)
-    any(config.blacklist) do word
+    any(config.blocklist) do word
         # no point in checking words that are longer than the ID
         length(word) <= length(id) || return false
         # short words have to match completely; otherwise, too many matches 
@@ -200,7 +200,7 @@ function _is_blocked_id(config::Configuration, id::AbstractString)
             # words with leet speak replacements are visible mostly on the ends of the ID
             startswith(id, word) || endswith(id, word)
         else
-            # otherwise, check for blacklisted word anywhere in the string
+            # otherwise, check for blocked word anywhere in the string
             contains(id, word)
         end
     end

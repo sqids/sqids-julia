@@ -5,7 +5,7 @@ using Test
     include("encoding.jl")
     include("alphabet.jl")
     include("minlength.jl")
-    include("blacklist.jl")
+    include("blocklist.jl")
     include("shuffle.jl")
     include("uniques.jl")
 end

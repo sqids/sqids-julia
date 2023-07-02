@@ -1,24 +1,24 @@
-module BlacklistTests
+module BlocklistTests
 
 using Sqids
 using Test
 
-@testset "blacklist" begin
+@testset "blocklist" begin
 
-    @testset "if no custom blacklist param, use the default blacklist" begin
+    @testset "if no custom blocklist param, use the default blocklist" begin
         config = Sqids.configure()
         @test Sqids.decode(config, "sexy") == [200044]
         @test Sqids.encode(config, [200044]) == "d171vI"
     end
 
-    @testset "if an empty blacklist param passed, don't use any blacklist" begin
-        config = Sqids.configure(blacklist=[])
+    @testset "if an empty blocklist param passed, don't use any blocklist" begin
+        config = Sqids.configure(blocklist=[])
         @test Sqids.decode(config, "sexy") == [200044]
         @test Sqids.encode(config, [200044]) == "sexy"
     end
 
-    @testset "if a non-empty blacklist param passed, use only that" begin
-        config = Sqids.configure(blacklist=["AvTg"])
+    @testset "if a non-empty blocklist param passed, use only that" begin
+        config = Sqids.configure(blocklist=["AvTg"])
         @test Sqids.decode(config, "sexy") == [200044]
         @test Sqids.encode(config, [200044]) == "sexy"
         @test Sqids.decode(config, "AvTg") == [100000]
@@ -26,8 +26,8 @@ using Test
         @test Sqids.decode(config, "7T1X8k") == [100000]
     end
 
-    @testset "blacklist" begin
-        config = Sqids.configure(blacklist=[
+    @testset "blocklist" begin
+        config = Sqids.configure(blocklist=[
             "8QRLaD",  # normal result of 1st encoding, let's block that word on purpose
             "7T1cd0dL",  # result of 2nd encoding
             "UeIe",  # result of 3rd encoding is `RA8UeIe7`, let's block a substring
@@ -38,8 +38,8 @@ using Test
         @test Sqids.decode(config, "TM0x1Mxz") == [1, 2, 3]
     end
 
-    @testset "decoding blacklisted words should still work" begin
-        config = Sqids.configure(blacklist=["8QRLaD", "7T1cd0dL", "RA8UeIe7", "WM3Limhw", "LfUQh4HN"])
+    @testset "decoding blocked words should still work" begin
+        config = Sqids.configure(blocklist=["8QRLaD", "7T1cd0dL", "RA8UeIe7", "WM3Limhw", "LfUQh4HN"])
         @test Sqids.decode(config, "8QRLaD") == [1, 2, 3]
         @test Sqids.decode(config, "7T1cd0dL") == [1, 2, 3]
         @test Sqids.decode(config, "RA8UeIe7") == [1, 2, 3]
@@ -47,11 +47,11 @@ using Test
         @test Sqids.decode(config, "LfUQh4HN") == [1, 2, 3]
     end
 
-    @testset "match against a short blacklisted word" begin
-        config = Sqids.configure(blacklist=["pPQ"])
+    @testset "match against a short blocked word" begin
+        config = Sqids.configure(blocklist=["pPQ"])
         @test Sqids.decode(config, Sqids.encode(config, [1000])) == [1000]
     end
 
 end
 
-end  # module BlacklistTests
+end  # module BlocklistTests
