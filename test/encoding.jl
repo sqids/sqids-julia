@@ -128,6 +128,14 @@ using Test
 
         @test_throws ArgumentError Sqids.encode(config, [Sqids.minValue(config) - 1])
         # @test_throws ArgumentError Sqids.encode(config, [Sqids.maxValue(config) + 1])
+        @test_throws ArgumentError Sqids.encode(config, [big(Sqids.maxValue(config)) + 1])
+    end
+
+    @testset "decode to out-of-range numbers" begin
+        config = Sqids.configure()
+
+        @test_throws ArgumentError Sqids.decode(config, "piF3yT7tOtoO")  # decoded to Int128[9223372036854775808] if not-strict mode
+        @test_throws ArgumentError Sqids.decode(config, "Vpe9SEjlSQreM3A2DNrRLZt")  # decoded to BigInt[170141183460469231731687303715884105728] if not-strict mode
     end
 end
 

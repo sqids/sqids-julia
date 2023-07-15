@@ -112,7 +112,13 @@ function encode(config::Configuration{true}, numbers::AbstractArray{<:Integer})
 end
 function _encode_numbers(config::Configuration, numbers::AbstractArray{<:Integer}, partitioned::Bool = false)
     # get a semi-random offset from input numbers
-    offset = foldl((a, (i, v)) -> a + Int(config.alphabet[v % length(config.alphabet) + 1]) + i - 1, pairs(numbers), init=length(numbers)) % length(config.alphabet)
+    # offset = foldl((a, (i, v)) -> a + Int(config.alphabet[v % length(config.alphabet) + 1]) + i, enumerate(numbers), init=0) % length(config.alphabet)
+    # ↓ a little faster
+    offset = 0
+    for (i, v) in pairs(numbers)
+        offset += Int(config.alphabet[v % length(config.alphabet) + 1]) + i
+    end
+    offset %= length(config.alphabet)
 
     # prefix is the first character in the generated ID, used for randomization
     # partition is the character used instead of the first separator to indicate that the first number in the input array is a throwaway number. this character is used only once to handle blocklist and/or padding. it's omitted completely in all other cases
@@ -135,7 +141,7 @@ function _encode_numbers(config::Configuration, numbers::AbstractArray{<:Integer
                 print(io, partitioned && i == 1 ? partition : alphabet_chars[end])
 
                 # shuffle on every iteration
-                alphabet_chars = _shuffle!(alphabet_chars)
+                _shuffle!(alphabet_chars)
             end
         end
     end
@@ -144,8 +150,8 @@ function _encode_numbers(config::Configuration, numbers::AbstractArray{<:Integer
     if config.minLength > length(id)
         # partitioning is required so we can safely throw away chunk of the ID during decoding
         if !partitioned
-            numbers = [zero(eltype(numbers)); numbers]
-            id = _encode_numbers(config, numbers, true)
+            partitioned_numbers = [zero(eltype(numbers)); numbers]
+            id = _encode_numbers(config, partitioned_numbers, true)
         end
 
         # if adding a `partition` number did not make the length meet the `minLength` requirement, then make the new id this format: `prefix` character + a slice of the alphabet to make up the missing length + the rest of the ID without the `prefix` character
@@ -162,12 +168,12 @@ function _encode_numbers(config::Configuration, numbers::AbstractArray{<:Integer
                 throw(ArgumentError("Ran out of range checking against the blocklist"))
             else
                 numbers[1] += 1
+                id = _encode_numbers(config, numbers, true)
             end
         else
-            numbers = [zero(eltype(numbers)); numbers]
+            partitioned_numbers = [zero(eltype(numbers)); numbers]
+            id = _encode_numbers(config, partitioned_numbers, true)
         end
-
-        id = _encode_numbers(config, numbers, true)
     end
 
     return id
@@ -296,13 +302,13 @@ function _to_number(::Configuration{true}, id::AbstractString, init::Int, alphab
         _number::Int
     end
 end
-function _to_number(::Configuration, id::AbstractString, init::I, alphabet_dic::Dict{Char, Int}) where {I <: Integer}
+function _to_number(config::Configuration, id::AbstractString, init::I, alphabet_dic::Dict{Char, Int}) where {I <: Integer}
     L = length(alphabet_dic)
     result::I = init
     for (i, c) in pairs(id)
         # result = result * L + alphabet_dic[c] - 1
         _number = _checked_muladd(result, L, alphabet_dic[c] - 1)
-        isnothing(_number) && return _to_number(widen(result), id[i:end], alphabet_dic)
+        isnothing(_number) && return _to_number(config, id[i:end], widen(result), alphabet_dic)
         result = _number
     end
     result

@@ -7,5 +7,6 @@ using Test
     include("minlength.jl")
     include("blocklist.jl")
     include("shuffle.jl")
+    include("notstrict.jl")
     include("uniques.jl")
 end
