@@ -123,6 +123,12 @@ using Test
         @test Sqids.decode(config, "*") == Int[]
     end
 
+    @testset "decoding an invalid ID with a repeating reserved character" begin
+        config = Sqids.configure()
+
+        @test Sqids.decode(config, "fff") == Int[]
+    end
+
     @testset "encode out-of-range numbers" begin
         config = Sqids.configure()
 
