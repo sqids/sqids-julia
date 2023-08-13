@@ -265,7 +265,9 @@ function decode(config::Configuration, id::AbstractString)
         separator = alphabet_chars[end]
         chunks = split(id_wk, separator, limit=2)
         # decode the number without using the `separator` character
+        # but also check that ID can be decoded (eg: does not contain any non-alphabet characters)
         alphabetWithoutSeparator = @view alphabet_chars[begin:end-1]
+        chunks[1] ⊆ alphabetWithoutSeparator || return Int[]
         # push!(ret, _to_number(config, chunks[1], alphabetWithoutSeparator))
         num = _to_number(config, chunks[1], alphabetWithoutSeparator)
         if !isstrict(config)
