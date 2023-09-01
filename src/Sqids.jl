@@ -42,9 +42,10 @@ struct Configuration{S}
 		# 1. all blocklist words should be lowercase
 		# 2. no words less than 3 chars
 		# 3. if some words contain chars that are not in the alphabet, remove those
-        filteredBlocklist = Set(filter(blocklist) do word
-            length(word) ≥ 3 && issetequal(word ∩ alphabet, word)
-        end .|> lowercase)
+        alphabet_chars = Set(lowercase(alphabet))
+        filteredBlocklist = Set(filter(blocklist .|> lowercase) do word
+            length(word) ≥ 3 && issetequal(word ∩ alphabet_chars, word)
+        end)
         new{strict}(_shuffle(alphabet), minLength, filteredBlocklist)
     end
 end

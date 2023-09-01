@@ -52,6 +52,16 @@ using Test
         @test Sqids.decode(config, Sqids.encode(config, [1000])) == [1000]
     end
 
+    @testset "blocklist filtering in constructor" begin
+        config = Sqids.configure(alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ", blocklist=["sqnmpn"])
+
+        id = Sqids.encode(config, [1, 2, 3])
+        numbers = Sqids.decode(config, id)
+
+        @test id == "ULPBZGBM"  # without blocklist, would've been "SQNMPN"
+        @test numbers == [1, 2, 3]
+    end
+
 end
 
 end  # module BlocklistTests
