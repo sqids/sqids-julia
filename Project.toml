@@ -1,7 +1,7 @@
 name = "Sqids"
 uuid = "5846b9ac-096c-425b-b363-8d1a03210e20"
 authors = ["GOTOH Shunsuke <antimon2.me@gmail.com> and contributors"]
-version = "0.2.0"
+version = "0.2.1"
 
 [compat]
 julia = "1.6"
