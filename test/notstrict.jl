@@ -23,7 +23,7 @@ using Test
         config = Sqids.configure(strict=false)
 
         numbers = [1, 2, 3]
-        id = "8QRLaD"
+        id = "86Rf07"
 
         @test Sqids.encode(config, numbers) == id
         @test Sqids.decode(config, id) == numbers
@@ -32,12 +32,12 @@ using Test
     @testset "encode/decode out-of-range numbers" begin
         config = Sqids.configure(strict=false)
 
-        @test_throws ArgumentError Sqids.encode(config, [Sqids.minValue(config) - 1])
+        @test_throws ArgumentError Sqids.encode(config, [-1])
         @test_throws MethodError Sqids.maxValue(config)
-        @test Sqids.encode(config, [widen(typemax(Int64)) + 1]) == "piF3yT7tOtoO"
-        @test Sqids.decode(config, "piF3yT7tOtoO") == [widen(typemax(Int64)) + 1]
-        @test Sqids.encode(config, [big(typemax(Int128)) + 1]) == "Vpe9SEjlSQreM3A2DNrRLZt"
-        @test Sqids.decode(config, "Vpe9SEjlSQreM3A2DNrRLZt") == [big(typemax(Int128)) + 1]
+        @test Sqids.encode(config, [widen(typemax(Int64)) + 1]) == "pXFNc5r689z6"
+        @test Sqids.decode(config, "pXFNc5r689z6") == [widen(typemax(Int64)) + 1]
+        @test Sqids.encode(config, [big(typemax(Int128)) + 1]) == "V3PI8qa3oBSPJ0E8hID5F0W"
+        @test Sqids.decode(config, "V3PI8qa3oBSPJ0E8hID5F0W") == [big(typemax(Int128)) + 1]
     end
 
     @testset "different inputs" begin

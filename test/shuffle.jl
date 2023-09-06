@@ -63,14 +63,6 @@ using Test
         @test Sqids._shuffle(i) == o
     end
 
-    @testset "bars" begin
-        @test Sqids._shuffle("▁▂▃▄▅▆▇█") == "▂▇▄▅▆▃▁█"
-    end
-
-    @testset "bars with numbers" begin
-        @test Sqids._shuffle("▁▂▃▄▅▆▇█0123456789") == "14▅▂▇320▆75▄█96▃8▁"
-    end
-
 end
 
 end  # module ShuffleTests

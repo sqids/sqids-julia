@@ -26,7 +26,7 @@ Simple encode & decode:
 
 ```julia
 config = Sqids.configure()
-id = Sqids.encode(config, [1, 2, 3])  #> "8QRLaD"
+id = Sqids.encode(config, [1, 2, 3])  #> "86Rf07"
 numbers = Sqids.decode(config, id)  #> [1, 2, 3]
 ```
 
@@ -34,7 +34,7 @@ Randomize IDs by providing a custom alphabet:
 
 ```julia
 config = Sqids.configure(alphabet="FxnXM1kBN6cuhsAvjW3Co7l2RePyY8DwaU04Tzt9fHQrqSVKdpimLGIJOgb5ZE")
-id = Sqids.encode(config, [1, 2, 3])  #> "B5aMa3"
+id = Sqids.encode(config, [1, 2, 3])  #> "B4aajs"
 numbers = Sqids.decode(config, id)  #> [1, 2, 3]
 ```
 
@@ -42,7 +42,7 @@ Enforce a *minimum* length for IDs:
 
 ```julia
 config = Sqids.configure(minLength=10)
-id = Sqids.encode(config, [1, 2, 3])  #> "75JT1cd0dL"
+id = Sqids.encode(config, [1, 2, 3])  #> "86Rf07xd4z"
 numbers = Sqids.decode(config, id)  #> [1, 2, 3]
 ```
 
@@ -50,7 +50,7 @@ Prevent specific words from appearing anywhere in the auto-generated IDs:
 
 ```julia
 config = Sqids.configure(blocklist=["word1","word2"])
-id = Sqids.encode(config, [1, 2, 3])  #> "8QRLaD"
+id = Sqids.encode(config, [1, 2, 3])  #> "86Rf07"
 numbers = Sqids.decode(config, id)  #> [1, 2, 3]
 ```
 
@@ -60,7 +60,7 @@ If `strict=false` is set when configuring, it enables handling of limitless valu
 
 ```julia
 config = Sqids.configure(strict=false)  # not-strict mode
-id = Sqids.encode(config, Int128[9223372036854775808])  #> "piF3yT7tOtoO"
+id = Sqids.encode(config, Int128[9223372036854775808])  #> "pXFNc5r689z6"
 numbers = Sqids.decode(config, id)  #> Int128[9223372036854775808]
 ```
 
