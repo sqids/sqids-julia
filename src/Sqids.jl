@@ -8,7 +8,7 @@ include("Blocklists.jl")
 
 const DEFAULT_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const MIN_VALUE = 0
-const MIN_LENGTH_LIMIT = 1_000
+const MIN_LENGTH_LIMIT = 255  # Int(typemax(UInt8))
 
 _shuffle(alphabet::AbstractString) = String(_shuffle!(collect(alphabet)))
 function _shuffle!(chars::Vector{Char})
