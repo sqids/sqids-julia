@@ -1,6 +1,6 @@
 module Sqids
 
-export encode, decode, minValue, maxValue
+export encode, decode
 
 using Base.Checked: mul_with_overflow, add_with_overflow
 
@@ -8,6 +8,7 @@ include("Blocklists.jl")
 
 const DEFAULT_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const MIN_VALUE = 0
+const MIN_LENGTH_LIMIT = 255  # Int(typemax(UInt8))
 
 _shuffle(alphabet::AbstractString) = String(_shuffle!(collect(alphabet)))
 function _shuffle!(chars::Vector{Char})
@@ -24,7 +25,7 @@ end
     Sqids.Configuration
 
 Sqids' parameter-configuration.  
-Be sure to place the instance as the 1st argument of [`encode`](@ref), [`decode`](@ref), [`minValue`](@ref) (and [`maxValue`](@ref)). 
+Be sure to place the instance as the 1st argument of [`encode`](@ref) and [`decode`](@ref).
 
 See also: [`configure`](@ref)
 """
@@ -34,14 +35,15 @@ struct Configuration{S}
     blocklist::Set{String}
     function Configuration(alphabet::AbstractString, minLength::Int, blocklist, strict::Bool = true)
         # @assert blocklist isa Union{AbstractSet{<:AbstractString}, AbstractArray{<:AbstractString}}
-        length(alphabet) < 5 && throw(ArgumentError("Alphabet length must be at least 5."))
+        sizeof(alphabet) == length(alphabet) || throw(ArgumentError("Alphabet cannot contain multibyte characters."))
+        length(alphabet) < 3 && throw(ArgumentError("Alphabet length must be at least 3."))
         length(unique(alphabet)) == length(alphabet) || throw(ArgumentError("Alphabet must contain unique characters."))
-        MIN_VALUE ≤ minLength ≤ length(alphabet) || throw(ArgumentError("Minimum length has to be between $(MIN_VALUE) and $(length(alphabet))."))
+        0 ≤ minLength ≤ MIN_LENGTH_LIMIT || throw(ArgumentError("Minimum length has to be between 0 and $(MIN_LENGTH_LIMIT)."))
 
-		# clean up blocklist:
-		# 1. all blocklist words should be lowercase
-		# 2. no words less than 3 chars
-		# 3. if some words contain chars that are not in the alphabet, remove those
+        # clean up blocklist:
+        # 1. all blocklist words should be lowercase
+        # 2. no words less than 3 chars
+        # 3. if some words contain chars that are not in the alphabet, remove those
         alphabet_chars = Set(lowercase(alphabet))
         filteredBlocklist = Set(filter(blocklist .|> lowercase) do word
             length(word) ≥ 3 && issetequal(word ∩ alphabet_chars, word)
@@ -93,53 +95,55 @@ Encode the passed `numbers` to an id.
 # Example
 ```julia-repl
 julia> encode(Sqids.configure(), [1, 2, 3])
-"8QRLaD"
+"86Rf07"
 
 ```
 """
 function encode(config::Configuration, numbers::AbstractArray{<:Integer})
     isempty(numbers) && return ""
     # don't allow out-of-range numbers [might be lang-specific]
-    all(≥(minValue(config)), numbers) || throw(ArgumentError("Encoding supports numbers greater than or equal to $(minValue(config))"))
-    _encode_numbers(config, numbers, false)
+    all(≥(MIN_VALUE), numbers) || throw(ArgumentError("Encoding supports numbers greater than or equal to $(MIN_VALUE)."))
+    _encode_numbers(config, numbers, 0)
 end
 function encode(config::Configuration{true}, numbers::AbstractArray{<:Integer})
     isempty(numbers) && return ""
     # don't allow out-of-range numbers [might be lang-specific]
     all(numbers) do num
-        minValue(config) ≤ num ≤ maxValue(config)
-    end || throw(ArgumentError("Encoding supports numbers between $(minValue(config)) and $(maxValue(config))"))
-    _encode_numbers(config, numbers, false)
+        MIN_VALUE ≤ num ≤ maxValue(config)
+    end || throw(ArgumentError("Encoding supports numbers between $(MIN_VALUE) and $(maxValue(config))."))
+    _encode_numbers(config, numbers, 0)
 end
-function _encode_numbers(config::Configuration, numbers::AbstractArray{<:Integer}, partitioned::Bool = false)
+function _encode_numbers(config::Configuration, numbers::AbstractArray{<:Integer}, increment::Int = 0)
+    # if increment is greater than alphabet length, we've reached max attempts
+    if increment > length(config.alphabet)
+        throw(ArgumentError("Reached max attempts to re-generate the ID."))
+    end
+
     # get a semi-random offset from input numbers
-    # offset = foldl((a, (i, v)) -> a + Int(config.alphabet[v % length(config.alphabet) + 1]) + i, enumerate(numbers), init=0) % length(config.alphabet)
+    # offset = foldl((a, (i, v)) -> a + Int(config.alphabet[v % length(config.alphabet) + 1]) + i, enumerate(numbers), init=increment) % length(config.alphabet)
     # ↓ a little faster
-    offset = 0
+    offset = increment
     for (i, v) in pairs(numbers)
         offset += Int(config.alphabet[v % length(config.alphabet) + 1]) + i
     end
     offset %= length(config.alphabet)
 
     # prefix is the first character in the generated ID, used for randomization
-    # partition is the character used instead of the first separator to indicate that the first number in the input array is a throwaway number. this character is used only once to handle blocklist and/or padding. it's omitted completely in all other cases
-    # alphabet should not contain `prefix` or `partition` reserved characters
+    # reverse alphabet (otherwise for [0, x] `offset` and `separator` will be the same char)
     alphabet_chars = collect(config.alphabet)[[offset+1:end; begin:offset]]
-    prefix = popfirst!(alphabet_chars)
-    partition = popfirst!(alphabet_chars)
+    prefix = alphabet_chars[begin]
+    reverse!(alphabet_chars)
 
     id = sprint(sizehint=2*length(numbers)) do io
         print(io, prefix)
         # encode input array
         for (i, num) in pairs(numbers)
-            # the last character of the alphabet is going to be reserved for the `separator`
-            alphabetWithoutSeparator = @view alphabet_chars[begin:end-1]
+            # the first character of the alphabet is going to be reserved for the `separator`
+            alphabetWithoutSeparator = @view alphabet_chars[begin+1:end]
             print(io, _to_id(num, alphabetWithoutSeparator))
             if i < length(numbers)
-                # prefix is used only for the first number
-                # separator = alphabet[end]
-                # for the barrier use the `separator` unless this is the first iteration and the first number is a throwaway number - then use the `partition` character
-                print(io, partitioned && i == 1 ? partition : alphabet_chars[end])
+                # `separator` character is used to isolate numbers within the ID
+                print(io, alphabet_chars[begin])
 
                 # shuffle on every iteration
                 _shuffle!(alphabet_chars)
@@ -147,34 +151,22 @@ function _encode_numbers(config::Configuration, numbers::AbstractArray{<:Integer
         end
     end
 
-    # if `minLength` is used and the ID is too short, add a throwaway number
+    # handle `minLength` requirement, if the ID is too short
     if config.minLength > length(id)
-        # partitioning is required so we can safely throw away chunk of the ID during decoding
-        if !partitioned
-            partitioned_numbers = [zero(eltype(numbers)); numbers]
-            id = _encode_numbers(config, partitioned_numbers, true)
-        end
+        # append a separator
+        id *= alphabet_chars[begin]
 
-        # if adding a `partition` number did not make the length meet the `minLength` requirement, then make the new id this format: `prefix` character + a slice of the alphabet to make up the missing length + the rest of the ID without the `prefix` character
-        if config.minLength > length(id)
-            id = id[begin] * join(alphabet_chars[begin:config.minLength - length(id)]) * id[2:end]
+        # keep appending `separator` + however much alphabet is needed
+        # for decoding: two separators next to each other is what tells us the rest are junk characters
+        while length(id) < config.minLength
+            _shuffle!(alphabet_chars)
+            id *= join(alphabet_chars[begin:min(config.minLength - length(id), length(alphabet_chars))])
         end
     end
 
-    # if ID has a blocked word anywhere, add a throwaway number & start over
+    # if ID has a blocked word anywhere, restart with a +1 increment
     if _is_blocked_id(config, id)
-        if partitioned
-            # c8 ignore next 2
-            if isstrict(config) && numbers[1] == maxValue(config)
-                throw(ArgumentError("Ran out of range checking against the blocklist"))
-            else
-                numbers[1] += 1
-                id = _encode_numbers(config, numbers, true)
-            end
-        else
-            partitioned_numbers = [zero(eltype(numbers)); numbers]
-            id = _encode_numbers(config, partitioned_numbers, true)
-        end
+        id = _encode_numbers(config, numbers, increment + 1)
     end
 
     return id
@@ -220,7 +212,7 @@ Restore a numbers list from the passed `id`.
 
 # Example
 ```julia-repl
-julia> decode(Sqids.configure(), "8QRLaD")
+julia> decode(Sqids.configure(), "86Rf07")
 3-element Array{Int64,1}:
  1
  2
@@ -246,29 +238,23 @@ function decode(config::Configuration, id::AbstractString)
     offset = findfirst(==(prefix), config.alphabet)
 
     # re-arrange alphabet back into it's original form
-    # `partition` character is in second position
-    # alphabet has to be without reserved `prefix` & `partition` characters
-    alphabet_chars = collect(config.alphabet)[[offset+1:end; begin:offset-1]]
-    partition = popfirst!(alphabet_chars)
+    # reverse alphabet
+    alphabet_chars = collect(config.alphabet)[[offset:end; begin:offset-1]]
+    reverse!(alphabet_chars)
 
     # now it's safe to remove the prefix character from ID, it's not needed anymore
     id_wk = @view id[begin+1:end]
 
-    # if this ID contains the `partition` character (between 1st position and non-last position), throw away everything to the left of it, include the `partition` character
-    partition_index = findfirst(==(partition), id_wk)
-    if !isnothing(partition_index) && partition_index > 1 && partition_index < length(id_wk)
-        id_wk = @view id_wk[partition_index+1:end]
-        alphabet_chars = _shuffle!(alphabet_chars)
-    end
-
     # decode
     while !isempty(id_wk)
-        separator = alphabet_chars[end]
+        separator = alphabet_chars[begin]
         chunks = split(id_wk, separator, limit=2)
+        # if chunk is empty, we are done (the rest are junk characters)
+        isempty(chunks[1]) && return ret
         # decode the number without using the `separator` character
-        # but also check that ID can be decoded (eg: does not contain any non-alphabet characters)
-        alphabetWithoutSeparator = @view alphabet_chars[begin:end-1]
-        chunks[1] ⊆ alphabetWithoutSeparator || return Int[]
+        # # but also check that ID can be decoded (eg: does not contain any non-alphabet characters)
+        alphabetWithoutSeparator = @view alphabet_chars[begin+1:end]
+        # chunks[1] ⊆ alphabetWithoutSeparator || return Int[]
         # push!(ret, _to_number(config, chunks[1], alphabetWithoutSeparator))
         num = _to_number(config, chunks[1], alphabetWithoutSeparator)
         if !isstrict(config)
@@ -318,22 +304,10 @@ function _to_number(config::Configuration, id::AbstractString, init::I, alphabet
 end
 
 """
-    minValue(config::Sqids.Configuration)
-
-Return the minimum value available with Sqids.  
-Always returns `0`.
-
-See also: [`maxValue`](@ref)
-"""
-minValue(::Configuration) = MIN_VALUE
-
-"""
     maxValue(config::Sqids.Configuration)
 
 Return the maximum value available with Sqids.  
 Returns `typemax(Int)` if Strict mode, or throws an `MethodError` otherwise.
-
-See also: [`minValue`](@ref)
 """
 maxValue(::Configuration{true}) = typemax(Int)
 
